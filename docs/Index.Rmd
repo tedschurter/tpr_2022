@@ -1,0 +1,702 @@
+---
+title: "<span style='font-size: 27px'>Analysis of 2022 Indiana Terminated Pregnancy Reports </span>"
+author: "Ted Schurter"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    
+theme: lumen
+---
+
+<style type="text/css">
+.main-container {
+  max-width: 1600px;
+  margin-left: autopx;
+  margin-right: 200px;
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(message = F)
+knitr::opts_chunk$set(cache = F)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggtext)
+library(ggrepel)
+library(DT)
+library(patchwork)
+library(tigris)
+```
+
+
+```{r, set ggplot theme}
+# set custom theme ####
+
+# panel color 
+panel_c <- "#fdfdf2"
+
+# theme
+t_theme <- function(base_size = 10){
+  
+  theme_classic() %+replace%
+    
+    theme( 
+      #grid elements
+      panel.grid.major.y = element_line(color = "gray85", size = .25),
+      #panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(), 
+      axis.line = element_blank(),
+      axis.ticks = element_blank(), 
+      
+      #axis.line = element_line(color = "gray90"),
+      #axis.line.y = element_blank(),
+      
+      axis.text = element_text(color = "gray55",
+                               size  = rel(.65)),
+      axis.title.x = element_blank(),
+      # element_text(color = "gray55",
+      # size = rel(.65), hjust = 0),
+      axis.title.y = element_blank(),
+      # element_text(color = "gray55",
+      #             size = rel(.6)),
+      
+      plot.title = element_textbox_simple(size = rel(1.5), color = "gray25", 
+                                          hjust = 0,lineheight = 1, 
+                                          margin = margin(0.2, 0, .2, 0, unit = "cm"),
+                                          family = "serif",face = "plain"),
+      plot.subtitle = element_textbox_simple(size = rel(1.1), color = "gray40", hjust = 0,
+                                             lineheight = 1,margin = margin(0.1, 0, .4, 0, unit = "cm"),),
+      plot.caption = element_textbox_simple(family = "sans", size = rel(.7),
+                                            color = "gray40", halign = 1,
+                                            lineheight = 1.2, margin = margin(0, 0, .1, 0, unit = "cm"),),
+      plot.title.position = "plot",
+      plot.caption.position = "panel", 
+      plot.margin = margin(.5, .5, .5,.5, unit = "cm"),
+      plot.background = element_rect(fill  = panel_c,
+                                     color = panel_c),
+      panel.background = element_rect(fill = panel_c,
+                                      color = panel_c)
+    )
+}
+```
+
+```{r, import year by month data}
+# monthly total data
+mnth <- read_csv("exported_data/monthly_abortions_14_22.csv")
+
+# order months as factor
+mnth$month <- factor(mnth$month, levels = c(
+  "January", "February", "March", "April", "May", "June", "July","August",
+  "September", "October", "November", "December"))
+
+# provider data
+ploc <- read_csv("exported_data/provider_residency.csv")
+
+# residency data
+nres <- read_csv("exported_data/nonresident_ab_19_22.csv")
+
+```
+
+#### Total abortions in Indiana rose `r round(100*(sum(mnth$tot[mnth$year == 2022])-sum(mnth$tot[mnth$year == 2021]))/sum(mnth$tot[mnth$year == 2021]))`% to `r formatC(sum(mnth$tot[mnth$year == 2022]), big.mark = ",")` in 2022, boosted by a `r round(100*((sum(mnth$nonres[mnth$year == 2022])-sum(mnth$nonres[mnth$year == 2021]))/sum(mnth$nonres[mnth$year == 2021])))`% increase in nonresident abortions from women in neighboring states fleeing state abortion bans implemented following the elimination in June 2022 of federal abortion protection by the [Supreme Court](https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf). Abortions to Indiana residents declined `r round(abs(100*((sum(mnth$res[mnth$year == 2022])-sum(mnth$res[mnth$year == 2021]))/sum(mnth$res[mnth$year == 2021]))))`% even as the impact of the state's own ban was [blunted](https://apnews.com/article/abortion-health-indiana-legislature-9dda020bf811f19e6254915ca1324edc) by a lawsuit that preserved abortion access while litigation continued.
+
+#### While the Indiana Supreme Court recently [upheld](https://apnews.com/article/indiana-abortion-ban-dc149c0716e3cf5be604bb5f427db7b8) that ban, the impact of the shifting legal landscape in and around Indiana is reflected in 2022's volatile monthly abortion totals. Although they climbed above last year’s levels in February and remained there through September, they spiked much higher in July, the first month after the Dobbs decision ended federal abortion protection, reaching `r formatC(mnth$tot[mnth$year == 2022 & mnth$month == "July"], big.mark = ",")`, `r round(100*(mnth$tot[mnth$year == 2022 & mnth$month == "July"]- mnth$tot[mnth$year == 2021 & mnth$month == "July"])/ mnth$tot[mnth$year == 2021 & mnth$month == "July"])`% higher than July 2021.
+
+## {.tabset}
+
+### Chart
+
+```{r, year by month plot, fig.width=11, fig.height=6.5}
+# set colors 
+
+# 2021 color 
+c_2021 <- "#1b7837"
+
+# 2022 color 
+c_2022 <- "#762a83"
+
+# assign colors for labeling
+c_mnth <- mnth %>% filter(month == "December") %>% mutate(
+  color = 
+    case_when(year == 2022 ~ c_2022,
+              year == 2021 ~ c_2021, 
+              .default = "black")
+)
+
+# plot
+
+ggplot()+ 
+  # lines for all months
+  geom_line(data = mnth %>% group_by(year) %>% arrange(desc(tot)),
+            aes(month, tot, group = year), color = "gray85", size = .25)+
+  
+  # Dobbs leak text and marker 
+  # vert line
+  geom_segment(aes(x=5+(2/31), xend = 5+(2/31),
+                   y = 200, yend = 1200),
+               color = "gray80", linetype = "longdash", linewidth = .15)+
+  # label
+  geom_textbox(
+    aes(x= 5, y = 200,
+        label = "**May 2, 2022:**<br><br>Draft of US Supreme Court Dobbs v. Jackson 
+        decision is leaked, raising speculation about overturn of Roe v. Wade."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.65), color = "gray50", 
+    hjust = 1, vjust = 0, box.color = NA, width = unit(.9, "inch"))+
+  
+  # Dobbs text and marker line
+  # vert line
+  geom_segment(aes(x=6+(24/30), xend = 6+(24/30),
+                   y = 200, yend = 1200),
+               color = "gray80", linetype = "longdash", linewidth = .15)+
+  # label 
+  geom_textbox(
+    aes(x= 6+(24/30)-.01, y = 200,
+        label = "**June 24, 2022:**<br><br>Dobbs decision overturning 
+        Roe v. Wade and removing constitutional right to abortion is released."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.65), color = "gray50", 
+    hjust = 1, vjust = 0, box.color = NA, width = unit(1.15, "inch"))+
+  
+  # Aug. 5 text and marker line
+  # vert line
+  geom_segment(aes(x=8+(5/31), xend = 8+(5/31),
+                   y = 200, yend = 1200),
+               color = "gray80", linetype = "longdash", linewidth = .15)+
+  # label
+  geom_textbox(
+    aes(x= 8+(5/31)-.01, y = 200,
+        label = "**Aug. 5, 2022:**<br><br>Indiana passes legislation prohibiting 
+    abortion from conception with few exceptions."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.65), color = "gray50", 
+    hjust = 1, vjust = 0,  box.color = NA, width = unit(.9, "inch"))+
+  
+  # text and line for Sept. 15 law going into effect
+  # vert line
+  geom_segment(aes(x=9+(15/30), xend = 9+(15/30),
+                   y = 200, yend = 1200),
+               color = "gray80", linetype = "longdash", linewidth = .15)+
+  # label
+  geom_textbox(
+    aes(x= 9+(15/30)-.01, y = 200,
+        label = "**Sept. 15, 2022:**<br><br>Indiana law goes into effect."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.65), color = "gray50", 
+    hjust = 1, vjust = 0,  box.color = NA, width = unit(.9, "inch"))+
+  
+  # text and line for Sept. 22 law blocked
+  # vert line
+  geom_segment(aes(x=9+(22/30), xend = 9+(22/30),
+                   y = 200, yend = 1200),
+               color = "gray80", linetype = "longdash", linewidth = .15)+
+  # label
+  geom_textbox(
+    aes(x= 9+(22/30)+.01, y = 1110,
+        label = "**Sept. 22, 2022:**<br><br>Indiana Circuit Court Judge Kelsey 
+        Blake Hanlon blocks new law because it restricts bodily autonomy."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.65), color = "gray50", 
+    hjust = 0, vjust = 1,  box.color = NA, width = unit(1.08, "inch"))+
+  
+  # Marion judge again blocks law
+  # vert line
+  geom_segment(aes(x=12+(2/31), xend = 12+(2/31),
+                   y = 200, yend = 1200),
+               color = "gray80", linetype = "longdash", linewidth = .15)+
+  # label
+  geom_textbox(
+    aes(x= 12+(2/31)+.01, y = 1110,
+        label = "**Dec. 2, 2022:**<br><br>Marion County Judge Heather Welch 
+        blocks new law because it likely violates Indiana’s Religious Freedom 
+        Restoration Act."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.65), color = "gray45", 
+    hjust = 0, vjust = 1,  box.color = NA, width = unit(1.08, "inch"))+
+  
+  # monthly average indicator line
+  geom_segment(aes(x=1, xend = 12,
+                   y = mean(mnth$tot[mnth$year !=2022]), 
+                   yend = mean(mnth$tot[mnth$year!=2022])),
+               color = "gray45", linewidth = .2) +
+  # monthly average label
+  geom_textbox(
+    aes(x= 0.5, y = mean(mnth$tot[mnth$year !=2022])),
+    label = "Overall monthly average 2014-2021", 
+    label.colour = NA, fill = panel_c,
+    size = rel(2.1), color = "gray45", lineheight = 1.3,
+    hjust = .5, box.color = NA,   width = unit(.4, "inch"))+
+  # monthly average label line
+  geom_segment(aes(x= .75, xend = .95, 
+                   y = mean(mnth$tot[mnth$year !=2022]), 
+                   yend = mean(mnth$tot[mnth$year!=2022])),
+               color = "gray45", linewidth = .1)+
+  
+  # line for 2021 totals
+  geom_line(data = mnth %>% filter(year == 2021),
+            aes(month, tot, group = year), color = c_2021, size = .65)+
+  # line for 2022 totals
+  geom_line(data = mnth %>% filter(year == 2022),
+            aes(month, tot, group = year), color = c_2022, size = .65)+
+  # labels for years 
+  geom_text_repel(data= mnth %>% 
+                  group_by(year) %>% mutate(a_tot = sum(res)+sum(nonres)) %>% 
+                  filter(month == "December"),
+                  aes(12.25, tot, label = paste0(year, ":  ", prettyNum(a_tot, 
+                      big.mark = ",", scientific = FALSE))),
+                  #xlim = c(2021.4),
+                  point.padding = .025,
+                  box.padding = .2,
+                  #nudge_y = -.2, 
+                  nudge_x = 1.2, # .7
+                  force = 1,
+                  color = c_mnth$color, 
+                  segment.color = "gray75",
+                  size = rel(2.35), 
+                  fontface = "plain", 
+                  direction = "y",
+                  segment.size = 0.1,
+                  min.segment.length = .15,
+                  hjust = .4,
+                  seed = 2
+  )+
+  # label for July peak
+  geom_textbox(
+    aes(x= 5.17, y = 1135),
+    label = paste0("Monthly abortions peaked in July <span style= 
+    'color:",c_2022,"'>2022 </span> at 1,182."),
+    label.colour = NA, fill = panel_c,
+    size = rel(2.75), color = "gray30", 
+    hjust = 0, box.color = NA,   width = unit(1.1, "inch"))+
+  # label for year labels
+  geom_textbox(
+    aes(x= 12.6, y = 800),
+    label = paste0("Year"),
+    label.colour = NA, fill = panel_c,
+    size = rel(1.95), color = "gray30", 
+    hjust = 0, box.color = NA,   width = unit(1.1, "inch"))+
+  # label for yearly total labels
+  geom_textbox(
+    aes(x= 12.95, y = 800),
+    label = paste0("Total"),
+    label.colour = NA, fill = panel_c,
+    size = rel(1.95), color = "gray30", 
+    hjust = 0, box.color = NA,   width = unit(1.1, "inch"))+
+  # set y scale
+  scale_y_continuous(limits = c(200, 1200),
+                     breaks = c( 400, 600, 800, 1000, 1200),
+                     labels = c("400", "600", "800", "1,000", "1,200"),
+                     name = "Abortions")+
+  # set x scale
+  scale_x_discrete(
+    breaks = c("January", "February", "March", "April","May", "June",
+               "July", "August", "September", "October", "November","December"),
+    labels = c("January", "February", "March", "April","May", "June",
+               "July", "August", "September", "October", "November","December"),
+    expand = expansion(add = 1.25))+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_blank()
+  )+
+  labs(title = 
+         paste0("Though the draft of the Dobbs decision to end federal abortion 
+    protection began circulating in May 2022, the biggest impact on Indiana's <span
+    style= 
+    'color:",c_2022,"'>2022 </span>monthly abortion totals occurred in July when they
+    jumped **",round(100*(mnth$tot[mnth$year == 2022 & mnth$month == "July"]-
+    mnth$tot[mnth$year == 2021 & mnth$month == "July"])/mnth$tot[mnth$year == 2021 & 
+    mnth$month=="July"]),"%** from the same month in <span style= 
+    'color:",c_2021,"'>2021 </span>to a nine-year high of **1,182**. They fell to a 
+    record low of **447** the following October."),
+       
+       caption = 
+         "<br>**Data:**'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+    **Graphic:** Ted Schurter 2023")
+
+
+```
+
+### Data
+
+```{r, data: month_yr}
+
+datatable(mnth,
+          colnames = c("Year", "Month", "Resident\nabortions", "Nonresident\nabortions", "Total\nabortions"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+            "Abortions in Indiana by year, month and residency 2014 to 2022.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))
+          ))%>% 
+  formatRound(c("tot"), digits = 0)
+
+```
+
+## {-}
+
+---
+
+#### The bulk of the boom belongs to people travelling to Indiana for abortions and who made up one in five of them in 2022. While it  was the first state to pass more restrictive abortion legislation after Dobbs, Indiana's ban didn't take effect until September 15. Kentucky, Ohio and Tennessee had trigger laws in place that outlawed abortion if federal protections were removed. An influx from those states fueled a `r formatC(100*((mnth$nonres[mnth$year == 2022 & mnth$month == "July"]-mnth$nonres[mnth$year == 2021 & mnth$month == "July"])/mnth$nonres[mnth$year == 2021 & mnth$month == "July"]), big.mark = ",")`% year-over-year increase in nonresident abortions in July and an overall annual increase of `r round(100*((sum(mnth$nonres[mnth$year == 2022])-sum(mnth$nonres[mnth$year == 2021]))/sum(mnth$nonres[mnth$year == 2021]))) `% in 2022. Resident abortions also spiked in July, but to a lesser degree, `r formatC(100*((mnth$res[mnth$year == 2022 & mnth$month == "July"]-mnth$res[mnth$year == 2021 & mnth$month == "July"])/mnth$res[mnth$year == 2021 & mnth$month == "July"]), big.mark = ",")`% higher than last year but lower than the 2022 peak of `r mnth$tot[mnth$year == 2022 & mnth$month == "March"]` recorded in March.
+
+```{r, year by month by residency, fig.width=11, fig.height=6.5}
+# resident color  
+res_c_2022 <- "#1b7837"
+
+# nonresident color 
+nres_c_2022 <- "#762a83"
+
+# calculate monthly means
+mnth_2 <- mnth %>% group_by(month) %>% arrange(year, month) %>%
+  mutate(
+    res_yoy = round(((res-lag(res))/lag(res))*100,2),
+    n_res_yoy = round(((nonres-lag(nonres))/lag(nonres))*100,2)
+  ) %>% ungroup()
+
+# calculate year to year change and pivot to long data
+mnth_lg <- mnth %>% arrange(year, month) %>% 
+  mutate(
+    yoy_ch = round(((tot-lag(tot))/lag(tot))*100,2) 
+  ) %>% 
+  pivot_longer(
+    3:4, names_to = "location", values_to = "count"
+  )
+
+# calculate percent change from 2014 to 2021 averages
+mnth_pc <- mnth %>% filter(year != 2022) %>% group_by(month) %>% mutate(
+  mn_res = round(mean(res)),
+  mn_nres = round(mean(nonres)),
+  pct_d_res  = round(100*((res-mn_res)/mn_res),1),
+  pct_d_nres = round(100*((nonres-mn_nres)/mn_nres),1)
+) 
+
+ggplot()+
+  # major y axis grid lines
+  geom_segment(aes(x = 0, xend = 12, y = 0, yend = 0), color     = "gray90", size = .25)+
+  geom_segment(aes(x = 0, xend = 12, y = 200, yend = 200), color = "gray90", size = .25)+
+  geom_segment(aes(x = 0, xend = 12, y = 400, yend = 400), color = "gray90", size = .25)+
+  geom_segment(aes(x = 0, xend = 12, y = 600, yend = 600), color = "gray90", size = .25)+
+  geom_segment(aes(x = 0, xend = 12, y = 800, yend = 800), color = "gray90", size = .25)+
+  
+  scale_y_continuous(limits  = c(0, max(mnth$res)),
+                     breaks = c(0, 200, 400, 600, 800),
+                     labels = c("0", "200", "400", "600", "800"))+
+  # yearly nonres lines
+  geom_line(data = mnth_lg %>% filter(location == "nonres") %>%  group_by(year) %>%  arrange(desc(count)),
+            aes(month, count, group = year), color = "#8c6bb1", size = .25, alpha = .25)+
+  # yearly resident lines
+  geom_line(data = mnth_lg %>% filter(location == "res") %>%  group_by(year) %>%  arrange(desc(count)),
+            aes(month, count, group = year), color = "#41ae76", size = .25, alpha = .25)+
+  # 2022 resident line
+  geom_line(data = mnth_2 %>% filter(year == 2022),
+            aes(month, res, group = year),
+            color = res_c_2022, linewidth = .75)+
+  # 2022 nonresident line
+  geom_line(data = mnth_2 %>% filter(year == 2022),
+            aes(month, nonres, group = year),
+            color = nres_c_2022, linewidth = .75)+
+  # average nonresident line
+  geom_line(data = mnth_2 %>% group_by(month) %>% filter(year != 2022) %>% mutate(mn_nr = mean(nonres)),
+            aes(month, mn_nr, group = year),
+            color = "gray30", linewidth = .25)+
+  # average resident line
+  geom_line(data = mnth_2 %>% group_by(month) %>%  filter(year != 2022) %>% mutate(mn_r = mean(res)),
+            aes(month, mn_r, group = year),
+            color = "gray30", linewidth = .25)+  
+  
+  scale_x_discrete(expand = expansion(mult = 0, add = c(0, 1.5)))+
+  # label for 2022 resident abortions
+  geom_textbox(aes( x = 12.15, 
+                    y = mnth_2 %>% filter(year == 2022 & month == "December") %>% arrange(res) %>% pull(3)),
+               label = "2022 resident abortions", label.colour = NA, fill = panel_c, size = rel(3), 
+               color = res_c_2022, hjust = 0, vjust = .8,  box.color = NA, width = unit(1.25, "inch"))+
+  
+  # average nonresident abortions
+  geom_textbox(aes( x = 12.15,
+                    y = mnth_2 %>% group_by(month) %>% mutate(mn_nr = mean(nonres)) %>% filter(month == "December" & 
+                                                                                                 year == 2022) %>% pull(8)),
+               label = "Average nonresident abortions 2014:2021", label.colour = NA, fill = panel_c, size = rel(2.35),
+               color = "grey30", hjust = 0, vjust = .55,  box.color = NA, width = unit(1.25, "inch"))+
+  # average resident abortions
+  geom_textbox(aes( x = 12.15,
+                    y = mnth_2 %>% group_by(month) %>% mutate(mn_r = mean(res)) %>% filter(month == "December" & 
+                                                                                             year == 2022) %>% pull(8)),
+               label = "Average resident abortions 2014:2021", label.colour = NA, fill = panel_c, size = rel(2.35),
+               color = "grey30", hjust = 0, vjust = .45,  box.color = NA, width = unit(1.25, "inch"))+
+  
+  # label for 2022 nonresident abortions
+  geom_textbox(aes( x = 12.15,
+                    y = mnth_2 %>% filter(year == 2022 & month == "December") %>% arrange(nonres) %>% pull(4)),
+               label = "2022 nonresident abortions", label.colour = NA, fill = panel_c, size = rel(3),
+               color = nres_c_2022, hjust = 0, vjust = .35,  box.color = NA, width = unit(1.25, "inch"))+
+  # nonresident July annotation
+  # label for 2022 nonresident abortions
+  geom_textbox(aes( x = 6.4,
+                    y = mnth_2 %>% filter(year == 2022 & month == "July") %>% arrange(nonres) %>% pull(4)),
+               label = paste0("Nonresident abortions reach an all-time high of ",
+                              mnth$nonres[mnth$year == 2022 & mnth$month == "July"],
+                              " in July 2022, ",
+                              ((mnth$nonres[mnth$year == 2022 & mnth$month == "July"]-
+                                  mnth_pc$mn_nres[mnth_pc$year == 2021 & mnth_pc$month == "July"])/
+                                 mnth_pc$mn_nres[mnth_pc$year == 2021 & mnth_pc$month == "July"])*100,
+                              "% above average."),
+               label.colour = NA, fill = panel_c, size = rel(4),
+               color = nres_c_2022, hjust = 1, vjust = .85,  box.color = NA, width = unit(2.25, "inch"))+
+  # label for 2022 October resident
+  # label for 2022 resident October
+  geom_textbox(aes( x = 10.25,
+                    y = mnth_2 %>% filter(year == 2022 & month == "October") %>% arrange(res) %>% pull(3)),
+               label = paste0("Resident abortions reach an all-time low in October 2022, ",
+                              round(((mnth$nonres[mnth$year == 2022 & mnth$month == "October"]-
+                                        mnth_pc$mn_nres[mnth_pc$year == 2021 & mnth_pc$month == "October"])/
+                                       mnth_pc$mn_nres[mnth_pc$year == 2021 & mnth_pc$month == "October"])*100),
+                              "% below average."),
+               label.colour = NA, fill = panel_c, size = rel(2.85),
+               color = res_c_2022, hjust = 0, vjust = .85,  box.color = NA, width = unit(1.25, "inch"))+
+  geom_text_repel(data= mnth %>% filter (month == "January"),
+                  aes(.95, res, label = year),
+                  xlim = 0.3,
+                  point.padding = .015,
+                  box.padding = .2,
+                  nudge_y = 2, 
+                  #nudge_x = .2, # .7
+                  force = 1,
+                  color = "gray55",
+                  segment.color = "gray85",
+                  size = rel(2.15), 
+                  fontface = "plain", 
+                  direction = "y",
+                  segment.size = 0.2,
+                  #min.segment.length = 3.05,
+                  hjust = 1,
+                  seed = 2
+  )+
+  geom_textbox(aes(x = .03,
+                   y = 110),
+               label = "Each line represents a year between 2014 to 2022.", label.colour = NA, fill = panel_c, size = rel(2.15),
+               color = "gray60", hjust = 0, vjust = .55,  box.color = NA, width = unit(.65, "inch"))+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_blank(),
+    
+  )+
+  
+  labs(
+    title = 
+      paste0("Following the post-Dobbs enactment of abortion bans in neighboring states, 
+      Indiana's
+      <span style= 'color:",nres_c_2022,"'>nonresident abortions</span> surged to
+      record highs in 2022, soaring ", 
+             formatC(((mnth$nonres[mnth$year == 2022 & mnth$month == "July"]-
+                         mnth_pc$mn_nres[mnth_pc$year == 2021 & mnth_pc$month == "July"])/
+                        mnth_pc$mn_nres[mnth_pc$year == 2021 & mnth_pc$month == "July"])*100,
+                     format = "f", digits = 0, big.mark = ","),
+             "% past their average July level and ending ",
+             round(((mnth %>% group_by(year) %>% summarise(sum(nonres)) %>% filter(year == 2022) %>% pull(2)-
+                       mnth %>% filter(year != 2022) %>% group_by(year) %>% summarise(tot = sum(nonres)) %>% 
+                       summarise(mean(tot)))/
+                      mnth %>% filter(year != 2022) %>% group_by(year) %>% summarise(tot = sum(nonres)) %>% 
+                      summarise(mean(tot)))*100),
+             "% above the 2014 to 2021 annual average."),
+    subtitle = 
+      paste0("Monthly <span style= 'color:",res_c_2022,"'>resident abortions</span> were 
+      higher than average in 2022 until September. They fell to 
+       ",
+             mnth$res[mnth$year == 2022 & mnth$month == "October"],
+             " in October, their lowest level of the past nine years; total <span style= 'color:",res_c_2022,"'>resident abortions</span> in 2022 ended ",
+             round(abs(((mnth %>% group_by(year) %>% summarise(sum(res)) %>% filter(year == 2022) %>% pull(2)-
+                           mnth %>% group_by(year) %>% summarise(sum(res)) %>% filter(year == 2021) %>% pull(2))/
+                          mnth %>% group_by(year) %>% summarise(sum(res)) %>% filter(year == 2021) %>% pull(2))*100)),
+             "% below average."),
+    caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
+  **Graphic:** Ted Schurter 2023"
+  )
+```
+
+---
+
+#### `r stringr::str_to_sentence(english::as.english(round(100*sum(nres$abortions[nres$state != "Illinois"& nres$state != "Michigan" & nres$state != "Other"])/sum(nres$abortions))))` percent of nonresidents who received an abortion in Indiana in 2022 came from Kentucky, Ohio or Tennessee, states with their own strict abortion bans. Abortions to Illinois residents in Indiana fell `r round(abs(100*((nres$abortions[nres$year==2022 & nres$state == "Illinois"]-nres$abortions[nres$year==2021 & nres$state == "Illinois"])/nres$abortions[nres$year==2021 & nres$state == "Illinois"])))`% in 2022 while those to Michigan residents remained the same. Both states allow abortions up to fetal viability. 
+
+```{r, combo plot nonresidents, fig.width=11, fig.height=6.5, echo=FALSE, include=F}
+# set colors 
+
+# kentucky color
+ky_c <-  "#fc8d59"
+# ohio color
+oh_c <-  "#4575b4"
+# Tennessee color
+tn_c <-  "#91bfdb"
+
+s_cols <- c("Kentucky" = ky_c,
+            "Illinois" = "gray",
+            "Michigan" = "gray",
+            "Ohio"     = oh_c,
+            "Tennessee" = tn_c,
+            "Other"    = "gray")
+ 
+# import states geometry  ####
+
+states <- states(cb=T)
+
+# filter to neighboring states
+
+states <- states %>% filter(NAME == "Illinois" | NAME == "Michigan" | NAME == "Kentucky" |
+                              NAME == "Tennessee" | NAME == "Indiana" | NAME == "Ohio")
+
+# order as factor
+
+nres$state <- factor(nres$state, levels = c("Kentucky", "Ohio", "Tennessee", 
+                                            "Illinois", "Michigan", "Other"))
+
+# add colors to match bar chart #### 
+states$color[states$NAME == "Kentucky"] <- ky_c 
+states$color[states$NAME == "Ohio"] <- oh_c
+states$color[states$NAME == "Tennessee"] <- tn_c
+states$color[states$NAME == "Illinois" ] <- "gray"
+states$color[states$NAME == "Michigan"] <- "gray"
+
+#### # create combo bar chart inset map ####
+
+# bar chart:
+
+pt <- nres %>% group_by(state) %>% arrange(desc(abortions)) %>% ungroup() %>% 
+  ggplot(aes(year, abortions, fill = state))+
+  geom_col(show.legend = F)+
+  scale_fill_manual(values = s_cols)+
+  facet_grid(~state, scales="free_y", switch = "x")+
+  scale_y_continuous(limits = c(0, 1000),
+                     breaks = c(0, 250, 500, 750, 1000),
+                     labels = c("0", "250", "500", "750", "1,000"))+
+  t_theme()+
+  theme(
+    panel.grid.major.y = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(hjust = 0),
+    
+    plot.subtitle = element_textbox_simple(size = rel(1.1), color = "gray40", hjust = 0,
+                                           lineheight = 1,margin = margin(.25, 0, .4, 0, unit = "cm"),),
+  )
+
+# map:
+
+p1 <- ggplot()+
+  geom_sf(data = states,
+          fill = states$color)+
+  t_theme()+
+  theme(
+    axis.text = element_blank(),
+  )
+
+# inset text 
+
+state_label <- "<span style = 'color:#fc8d59;'> Kentucky</span>, <span style = 
+      'color:#376bae;'>Ohio</span> and <span style = 'color:#82b6d6;'>Tennessee</span> 
+      enacted near-total abortion bans after the Dobbs decision in 2022. Like Indiana, 
+      <span style = 'color:#376bae;'>Ohio's </span>ban is currently blocked while 
+      litigation proceeds. Illinois and Michigan retain abortion rights."
+
+# inset text object
+
+text1 <- ggplot(data = tibble(x = 0, y = 1, label = state_label)) +
+  aes(x = x, y = y, label = label) +
+  geom_textbox(
+    box.color = NA,
+    color = "gray25",
+    fill = NA,
+    width = unit(10, "cm"),
+    hjust = 0,
+    vjust = 1 
+  ) +
+  scale_x_continuous(limits = c(0, 1))+
+  scale_y_continuous(limits = c(0, 1))+
+  theme_void() 
+
+# add it all up with patchwork 
+
+combo_plot <- 
+pt + inset_element(p1, 
+                   left = 0.75, 
+                   bottom = 0.1, 
+                   right = 1, 
+                   top = 1.25,
+                   align_to = "plot")+
+  inset_element(text1, 
+                left = 0.36, 
+                bottom = 0.45, 
+                right = .76, 
+                top = .80,
+                align_to = "plot")+
+  
+  plot_annotation(
+    theme = t_theme(),
+    title =
+      paste0("The number of nonresident abortions in Indiana in 2022 increased 
+      dramatically following the Dobbs decision ending federal abortion protections. 
+      <span style ='color:#fc8d59;'>Kentucky</span> residents received ",
+             nres$abortions[nres$year == 2022 & nres$state == "Kentucky"],
+             ", the most in 2022 and a ",
+             round(100*((nres$abortions[nres$year == 2022 & nres$state == "Kentucky"]-
+                           nres$abortions[nres$year == 2021 & nres$state == "Kentucky"])/
+                          nres$abortions[nres$year == 2021 & nres$state == "Kentucky"])),
+             "% increase from 2021. <span style ='color:#4575b4;'>Ohio's</span> totals increased ",
+             formatC(round(100*((nres$abortions[nres$year == 2022 & nres$state == "Ohio"]-
+                                   nres$abortions[nres$year == 2021 & nres$state == "Ohio"])/
+                                  nres$abortions[nres$year == 2021 & nres$state == "Ohio"])),big.mark = ","),
+             "% from 2021.")
+  )
+```
+
+## {.tabset}
+
+### Chart
+
+```{r, display combo plot, fig.width=11, fig.height=6, echo=FALSE}
+combo_plot
+```
+
+
+### Data
+
+```{r, data: nonres by year, state}
+
+datatable(nres,
+          colnames = c("Year", "State", "Abortions"),
+          caption = htmltools::tags$caption(
+            style = 'caption-side: top; text-align: center;',
+            "Nonresident abortions in Indiana by year and state 2019 to 2022.", style = "color:black"),
+          rownames=FALSE, 
+          filter = "top", 
+          extensions = c('Buttons', 'FixedColumns'),
+          options = list(pageLength=10, 
+                         scrollX=T,
+                         dom = 'Bfrtip',
+                         scrollY = '250px',
+                         buttons = c('csv', 'excel')
+                         #columnDefs = list(list(className = 'dt-center', targets = 0:4))
+          ))
+
+```
+
+## {-}
+
+---
+<br><br>
+
+###### Data and analysis workflow available at [https://github.com/tedschurter/tpr_2022](https://github.com/tedschurter/tpr_2022/)
+
+###### A previous analysis of Indiana abortion data from 2014 to 2021 can be found [here.](https://tedschurter.github.io/indiana_abortion/)
+
+
+
