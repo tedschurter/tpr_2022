@@ -266,10 +266,17 @@ ggplot()+
        
        caption = 
          "<br>**Data:**'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-    **Graphic:** Ted Schurter 2023")
-
-# ggsave("plots/month_yr_ab_2022.svg", width = 3200, height = 1725, unit = "px",
-#        plot = last_plot())
+    **Graphic:** Ted Schurter 2023", 
+       
+       alt = paste0("Line graph of total monthly abortions from 2014 to 2022 showing
+                    record high numbers in July 2022 and record low numbers in October 2022.
+                    Chart also shows significant dates in 2022 related to abortions
+                    changing legal status at the federal and Indiana level.")
+  )
+       
+       
+ggsave("plots/month_yr_ab_2022.svg", width = 3200, height = 1725, unit = "px",
+      plot = last_plot())
 
 ####
 
@@ -470,8 +477,14 @@ ggplot()+
       "% below average."),
     
     caption = "<br>**Data:** 'www.in.gov/health/vital-records/vital-statistics/terminated-pregnancy-reports'<br>
-    **Graphic:** Ted Schurter 2023"
-    )
+    **Graphic:** Ted Schurter 2023",
+    
+    alt = "Line graph of total monthly abortions from 2014 to 2022 by residents 
+      and nonresidents showing record high numbers in July 2022 and record low numbers 
+      in October 2022 as well as a more than 900% increase in nonresident abortions 
+      from their 2014 to 2021 average level."
+  )
+    
 
 ggsave("plots/month_yr_ab_res_2022.svg", width = 3200, height = 1725, unit = "px",
        plot = last_plot())

@@ -1,7 +1,7 @@
 ---
 title: "<span style='font-size: 27px'>Analysis of 2022 Indiana Terminated Pregnancy Reports </span>"
 author: "Ted Schurter"
-date: "`r Sys.Date()`"
+date: "2023-07-14"
 output:
   html_document:
     
@@ -111,7 +111,7 @@ nres <- read_csv("exported_data/nonresident_ab_19_22.csv")
 
 ### Chart
 
-```{r, year by month plot, fig.width=11, fig.height=6.5}
+```{r, year by month plot, fig.width=11, fig.height=6.5, fig.alt= "Line graph of total monthly abortions from 2014 to 2022 showing record high numbers in July 2022 and record low numbers in October 2022. Chart also shows significant dates in 2022 related to abortions changing legal status at the federal and Indiana level."}
 # set colors 
 
 # 2021 color 
@@ -350,7 +350,7 @@ datatable(mnth,
 
 #### The bulk of the boom belongs to people travelling to Indiana for abortions and who made up one in five of them in 2022. While it  was the first state to pass more restrictive abortion legislation after Dobbs, Indiana's ban didn't take effect until September 15. Kentucky, Ohio and Tennessee had trigger laws in place that outlawed abortion if federal protections were removed. An influx from those states fueled a `r formatC(100*((mnth$nonres[mnth$year == 2022 & mnth$month == "July"]-mnth$nonres[mnth$year == 2021 & mnth$month == "July"])/mnth$nonres[mnth$year == 2021 & mnth$month == "July"]), big.mark = ",")`% year-over-year increase in nonresident abortions in July and an overall annual increase of `r round(100*((sum(mnth$nonres[mnth$year == 2022])-sum(mnth$nonres[mnth$year == 2021]))/sum(mnth$nonres[mnth$year == 2021]))) `% in 2022. Resident abortions also spiked in July, but to a lesser degree, `r formatC(100*((mnth$res[mnth$year == 2022 & mnth$month == "July"]-mnth$res[mnth$year == 2021 & mnth$month == "July"])/mnth$res[mnth$year == 2021 & mnth$month == "July"]), big.mark = ",")`% higher than last year but lower than the 2022 peak of `r mnth$tot[mnth$year == 2022 & mnth$month == "March"]` recorded in March.
 
-```{r, year by month by residency, fig.width=11, fig.height=6.5}
+```{r, year by month by residency, fig.width=11, fig.height=6.5, fig.alt= "Line graph of total monthly abortions from 2014 to 2022 by residents and nonresidents showing record high numbers in July 2022 and record low numbers in October 2022 as well as a more than 900% increase in nonresident abortions from their 2014 to 2021 average level."}
 # resident color  
 res_c_2022 <- "#1b7837"
 
@@ -661,7 +661,7 @@ pt + inset_element(p1,
 
 ### Chart
 
-```{r, display combo plot, fig.width=11, fig.height=6, echo=FALSE}
+```{r, display combo plot, fig.width=11, fig.height=6, echo=FALSE, fig.alt= "Bar chart of nonresident abortion totals for states near Indiana that had residents travel here for an abortion showing Kentucky with a 260% increase from 2021 and Ohio with a 1,428% increase. Chart also include inset map of states color coded according to the existence of post-Dobbs abortion bans."}
 combo_plot
 ```
 
