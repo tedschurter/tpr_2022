@@ -6,7 +6,7 @@
 
 ##### This repository is a limited analysis of data published in the 2022 [Indiana Terminated Pregnancy Report](https://www.in.gov/health/vital-records/files/2022-TPR-Annual.pdf) released by the Indiana Department of Health on June 30, 2023. This project also uses data from 2014 to 2021 that was gathered, cleaned, analyzed and visualized in a more detailed project [here](https://github.com/tedschurter/indiana_abortion) and published [here](https://tedschurter.github.io/indiana_abortion).
 
-##### Indiana's new, more restrictive abortion law, passed after the Supreme Court [ruled](https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf) that abortion is not a constitutionally protected right, was blocked one week after it took effect. After the ban was blocked, abortions resumed and continued throughout 2022 and well into 2023. The Indiana Supreme Court [ruled](https://tedschurter.github.io/indiana_abortion) June 30, 2023 that the state ban did not violate the state constitution and will be reinstituted.
+##### Indiana's new, more restrictive abortion law, passed after the Supreme Court [ruled](https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf) that abortion is not a constitutionally protected right, was blocked one week after it took effect. After the ban was blocked, abortions resumed and continued throughout 2022 and well into 2023. The Indiana Supreme Court [ruled](https://apnews.com/article/indiana-abortion-ban-dc149c0716e3cf5be604bb5f427db7b8) June 30, 2023 that the state ban did not violate the state constitution and will be reinstituted.
 
 ##### This project [visualizes](https://tedschurter.github.io/tpr_2022) the impact of changing state and federal laws upon 2022 abortion totals in Indiana.  
 
